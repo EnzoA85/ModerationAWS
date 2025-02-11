@@ -99,3 +99,154 @@ def detect_objects(image_path, aws_service):
 
     # Retourner les noms des objets détectés
     return [label['Name'] for label in top_labels]
+
+
+#Fonction pour détecter les célébrités sur une image
+def detect_celebrities(image_path, aws_service):
+    # Ouvrir l'image en mode binaire
+    with open(image_path, 'rb') as image_file:
+        image_bytes = image_file.read()
+
+    # Appeler l'API Rekognition pour détecter les célébrités
+    response = aws_service.recognize_celebrities(
+        Image={'Bytes': image_bytes}
+    )
+
+    # Extraire les noms des célébrités détectées
+    celebrities = response.get('CelebrityFaces', [])
+
+    # Limiter à 10 célébrités maximum
+    top_celebrities = [celebrity['Name'] for celebrity in celebrities[:10]]
+
+    # Retourner les résultats
+    return top_celebrities
+
+
+#Fonction pour détecter les émotions
+def detect_emotions(image_path, aws_service):
+    # Ouvrir l'image en mode binaire
+    with open(image_path, 'rb') as image_file:
+        image_bytes = image_file.read()
+
+    # Appeler l'API Rekognition pour détecter les visages avec tous les attributs
+    response = aws_service.detect_faces(
+        Image={'Bytes': image_bytes},
+        Attributes=['ALL']  # Demande de tous les attributs, y compris les émotions
+    )
+
+    # Initialiser la liste pour stocker les résultats
+    faces_info = []
+
+    # Parcourir les visages détectés
+    for face_detail in response['FaceDetails']:
+        face_data = {}
+
+        # Récupérer le genre et son niveau de confiance
+        gender = face_detail['Gender']
+        face_data['Gender'] = {
+            'Value': gender['Value'],
+            'Confidence': round(gender['Confidence'], 2)
+        }
+
+        # Récupérer l'âge estimé (plage)
+        age_range = face_detail['AgeRange']
+        face_data['AgeRange'] = {
+            'Low': age_range['Low'],
+            'High': age_range['High']
+        }
+
+        # Récupérer les 3 émotions principales et leurs niveaux de confiance
+        emotions = sorted(face_detail['Emotions'], key=lambda x: x['Confidence'], reverse=True)
+        top_3_emotions = emotions[:3]  # Sélectionner les 3 émotions principales
+        face_data['Emotions'] = [{
+            'Type': emotion['Type'],
+            'Confidence': round(emotion['Confidence'], 2)
+        } for emotion in top_3_emotions]
+
+        # Ajouter le visage détecté avec ses informations dans la liste
+        faces_info.append(face_data)
+
+        # Affichage des informations sur chaque visage détecté
+        print("[INFO] Visage détecté:")
+        print(f"  - Genre: {gender['Value']} (confiance: {round(gender['Confidence'], 2)}%)")
+        print(f"  - Âge estimé: {age_range['Low']}-{age_range['High']} ans")
+        print("  - Émotions principales:")
+        for emotion in top_3_emotions:
+            print(f"    * {emotion['Type']}: {round(emotion['Confidence'], 2)}%")
+        print("---")
+
+    # Retourner la liste des informations des visages détectés
+    return faces_info
+
+def summarize_emotions(faces_info):
+    # Initialisation des variables
+    total_faces = len(faces_info)
+    emotion_stats = {}  # Dictionnaire pour compter les émotions et leur confiance moyenne
+    age_stats = {'min': float('inf'), 'max': float('-inf'), 'sum': 0}  # Statistiques d'âge
+    gender_stats = {'Male': 0, 'Female': 0}  # Compteur de genres
+
+    dominant_emotion = {'Type': None, 'Confidence': 0}  # Émotion dominante
+    total_emotions_confidence = 0  # Somme des confiances des émotions pour calculer l'émotion dominante
+    emotion_count = 0  # Compteur pour les émotions
+
+    # Analyser chaque visage dans les informations fournies
+    for face in faces_info:
+        # Calcul de l'âge moyen pour chaque visage
+        age_range = face['AgeRange']
+        age_mean = (age_range['Low'] + age_range['High']) / 2
+        age_stats['sum'] += age_mean
+        age_stats['min'] = min(age_stats['min'], age_mean)
+        age_stats['max'] = max(age_stats['max'], age_mean)
+
+        # Mise à jour des statistiques de genre
+        gender = face['Gender']['Value']
+        gender_stats[gender] += 1
+
+        # Analyser les émotions de chaque visage
+        for emotion in face['Emotions']:
+            # Si la confiance est > 50%, on la prend en compte
+            if emotion['Confidence'] > 50:
+                emotion_type = emotion['Type']
+                confidence = emotion['Confidence']
+
+                # Mise à jour des statistiques d'émotions
+                if emotion_type not in emotion_stats:
+                    emotion_stats[emotion_type] = {'count': 0, 'confidence_sum': 0}
+                emotion_stats[emotion_type]['count'] += 1
+                emotion_stats[emotion_type]['confidence_sum'] += confidence
+
+                # Mise à jour de l'émotion dominante
+                if confidence > dominant_emotion['Confidence']:
+                    dominant_emotion = {'Type': emotion_type, 'Confidence': confidence}
+
+                # Calcul de la confiance moyenne des émotions
+                total_emotions_confidence += confidence
+                emotion_count += 1
+
+    # Calcul de l'émotion dominante
+    dominant_emotion_avg_confidence = dominant_emotion['Confidence']
+
+    # Calcul des statistiques d'âge
+    if total_faces > 0:
+        age_stats['average'] = age_stats['sum'] / total_faces
+    else:
+        age_stats['average'] = 0
+
+    # Calcul de la confiance moyenne des émotions
+    if emotion_count > 0:
+        avg_emotion_confidence = total_emotions_confidence / emotion_count
+    else:
+        avg_emotion_confidence = 0
+
+    # Retourner le résumé des émotions
+    return {
+        'total_faces': total_faces,
+        'dominant_emotion': dominant_emotion['Type'],
+        'dominant_emotion_confidence': dominant_emotion_avg_confidence,
+        'emotion_stats': {
+            'count': emotion_stats,
+            'average_confidence': avg_emotion_confidence
+        },
+        'age_stats': age_stats,
+        'gender_stats': gender_stats
+    }

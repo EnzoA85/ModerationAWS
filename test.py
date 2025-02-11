@@ -1,6 +1,6 @@
-from moderation import get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects
+from moderation import get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions
 from matplotlib import pyplot as plt
-import cv2, boto3
+import cv2, boto3, json
 
 
 
@@ -62,3 +62,66 @@ import cv2, boto3
 
 # # Affichage des objets détectés
 # print("Objets détectés dans l'image :", detected_objects)
+
+
+
+# #Test de la fonction detect_celebrities
+# TEST_IMAGE_FILE_1 = "./assets/selfie_with_mariah-carey.png"
+# TEST_IMAGE_FILE_2 = "./assets/selfie_with_johnny-depp.png"
+# TEST_IMAGE_FILE_3 = "./assets/selfie_with_kanye-west.png"
+# # Supposons que vous ayez déjà une session AWS valide
+# aws_session = get_aws_session()
+# rekognition_client = aws_session.client('rekognition', region_name='us-east-1')
+
+# # Liste des images de test
+# test_images = [TEST_IMAGE_FILE_1, TEST_IMAGE_FILE_2, TEST_IMAGE_FILE_3]
+
+# # Pour chaque image, appeler la fonction detect_celebrities et afficher les résultats
+# for image_path in test_images:
+#     print(f"\nDétection des célébrités dans l'image : {image_path}")
+#     celebrities = detect_celebrities(image_path, rekognition_client)
+#     print(f"Célébrités détectées : {celebrities}")
+
+
+
+# #Test de la fonction detect_emotions et summarize_emotions
+# # Définir les chemins des images de test
+# TEST_IMAGE_FILE_1 = "./assets/group_selfie_1.jpg"    # Premier selfie de groupe
+# TEST_IMAGE_FILE_2 = "./assets/group_selfie_2.jpg"    # Deuxième selfie de groupe
+# TEST_IMAGE_FILE_3 = "./assets/group_selfie_3.jpg"    # Troisième selfie de groupe
+# TEST_IMAGE_FILE_4 = "./assets/2024.jpg"    # Quatrième selfie de groupe
+
+# # Supposons que vous ayez déjà une session AWS valide
+# aws_session = get_aws_session()  # Vous pouvez adapter cette fonction selon votre propre configuration
+# rekognition_client = aws_session.client('rekognition', region_name='us-east-1')
+
+# # Liste des images de test
+# test_images = [TEST_IMAGE_FILE_1, TEST_IMAGE_FILE_2, TEST_IMAGE_FILE_3, TEST_IMAGE_FILE_4]
+
+# # Pour chaque image, appeler la fonction detect_emotions et afficher les résultats
+# for image_path in test_images:
+#     print(f"\nAnalyse des émotions pour l'image : {image_path}")
+    
+#     # Analyser les émotions des visages détectés dans l'image
+#     faces_info = detect_emotions(image_path, rekognition_client)
+    
+#     # Afficher les détails des visages détectés
+#     for idx, face in enumerate(faces_info, 1):
+#         print(f"\n[INFO] Visage {idx} détecté:")
+#         print(f"  - Genre: {face['Gender']['Value']} (Confiance: {face['Gender']['Confidence']}%)")
+#         print(f"  - Âge estimé: {face['AgeRange']['Low']} - {face['AgeRange']['High']} ans")
+#         print(f"  - Émotions détectées :")
+#         for emotion in face['Emotions']:
+#             print(f"    * {emotion['Type']}: {emotion['Confidence']}%")
+    
+#     # Générer le résumé des statistiques des émotions
+#     summary = summarize_emotions(faces_info)
+    
+#     # Afficher le résumé des statistiques
+#     print("\n[INFO] Résumé des émotions :")
+#     print(f"  - Nombre total de visages détectés : {summary['total_faces']}")
+#     print(f"  - Émotion dominante : {summary['dominant_emotion']} (Confiance: {summary['dominant_emotion_confidence']}%)")
+#     print(f"  - Statistiques des émotions :")
+#     print(json.dumps(summary['emotion_stats'], indent=4))
+#     print(f"  - Statistiques d'âge : min={summary['age_stats']['min']}, max={summary['age_stats']['max']}, moyenne={summary['age_stats']['average']}")
+#     print(f"  - Distribution des genres : {summary['gender_stats']}")
