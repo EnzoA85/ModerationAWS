@@ -1,4 +1,4 @@
-import os, cv2, boto3
+import os, cv2, boto3, time, urllib.request, json
 from dotenv import load_dotenv
 
 #Fonction de création de session AWS
@@ -15,6 +15,14 @@ def get_aws_session():
     
     # Retourne l'objet session créé.
     return aws_session
+
+
+#Fonction instancier client S3 et création bucket
+def create_S3User_bucket(bucketname):
+    session = boto3.Session(aws_access_key_id=os.getenv("ACCESS_KEY"), aws_secret_access_key=os.getenv("SECRET_KEY"))
+    s3 = session.resource("s3")
+    bucket = s3.create_bucket(Bucket=bucketname)
+
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
 def check_filetype(filename):   
@@ -38,6 +46,7 @@ def check_filetype(filename):
     
     return filetype
 
+
 #Fonction d'extraction d'image d'une vidéo
 def extract_frame_video(video_path, frame_id):
     # Ouvre la vidéo à partir du chemin fourni.
@@ -53,6 +62,7 @@ def extract_frame_video(video_path, frame_id):
     # Sinon, retourne None.
     return image if ret else None
 
+
 #Fonction pour modérer une image (reconnaitre les pb)
 def moderate_image(image_path, aws_service):
     # Lire l'image en mode binaire
@@ -66,3 +76,26 @@ def moderate_image(image_path, aws_service):
     labels = [label["Name"] for label in response.get("ModerationLabels", [])]
 
     return labels
+
+
+#Fonction pour identifier les objets d'une image (les 10 plus sur)
+def detect_objects(image_path, aws_service):
+    # Ouvrir l'image en mode binaire
+    with open(image_path, 'rb') as image_file:
+        image_bytes = image_file.read()
+
+    # Appeler l'API Rekognition pour détecter les objets
+    response = aws_service.detect_labels(
+        Image={'Bytes': image_bytes},
+        MaxLabels=10,  # On limite à 10 objets détectés
+        MinConfidence=50  # Confiance minimale de 50%
+    )
+
+    # Extraire les noms des objets détectés avec la plus haute confiance
+    labels = response['Labels']
+
+    # Trier les labels par confiance et prendre les 10 premiers
+    top_labels = sorted(labels, key=lambda x: x['Confidence'], reverse=True)[:10]
+
+    # Retourner les noms des objets détectés
+    return [label['Name'] for label in top_labels]
