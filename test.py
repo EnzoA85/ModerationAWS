@@ -1,4 +1,4 @@
-from moderation import get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions
+from moderation import process_media, get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions
 from matplotlib import pyplot as plt
 import cv2, boto3, json
 
@@ -125,3 +125,21 @@ import cv2, boto3, json
 #     print(json.dumps(summary['emotion_stats'], indent=4))
 #     print(f"  - Statistiques d'âge : min={summary['age_stats']['min']}, max={summary['age_stats']['max']}, moyenne={summary['age_stats']['average']}")
 #     print(f"  - Distribution des genres : {summary['gender_stats']}")
+
+
+# Définir le chemin du fichier à tester
+image_path = "assets/no-violence2.png"
+
+# Initialiser la session AWS en utilisant la fonction get_aws_session
+aws_session = get_aws_session()
+
+# Initialiser les clients AWS avec la session AWS créée
+rekognition = aws_session.client("rekognition")
+transcribe = aws_session.client("transcribe")
+comprehend = aws_session.client("comprehend")
+
+# Tester la fonction process_media
+resultats = process_media(image_path, rekognition, transcribe, comprehend)
+
+# Afficher les résultats
+print(resultats)

@@ -1,4 +1,4 @@
-import os, cv2, boto3, time, urllib.request, json
+import os, cv2, boto3, time
 
 from dotenv import load_dotenv
 
@@ -251,3 +251,32 @@ def summarize_emotions(faces_info):
         'gender_stats': gender_stats
     }
     return labels
+
+def process_media(media_file, rekognition, transcribe, comprehend):
+    # Déterminer le type du fichier
+    file_type = check_filetype(media_file)
+    
+    if file_type is None:
+        return {"error": "Type de fichier non supporté."}
+    
+    results = {"file_type": file_type}
+
+    # Si le fichier est une image, effectuer les analyses
+    if file_type == "image":
+        # Modération de l'image
+        results["moderation"] = moderate_image(media_file, rekognition)
+        
+        # Détection des objets
+        results["objects"] = detect_objects(media_file, rekognition)
+        
+        # Détection des célébrités
+        results["celebrities"] = detect_celebrities(media_file, rekognition)
+        
+        # Détection des émotions
+        results["emotions"] = detect_emotions(media_file, rekognition)
+    
+    # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
+    elif file_type == "vidéo":
+        results["message"] = "Traitement vidéo non encore implémenté."
+    
+    return results
