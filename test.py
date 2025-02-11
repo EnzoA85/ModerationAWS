@@ -89,7 +89,7 @@ import cv2, boto3, json
 # TEST_IMAGE_FILE_1 = "./assets/group_selfie_1.jpg"    # Premier selfie de groupe
 # TEST_IMAGE_FILE_2 = "./assets/group_selfie_2.jpg"    # Deuxième selfie de groupe
 # TEST_IMAGE_FILE_3 = "./assets/group_selfie_3.jpg"    # Troisième selfie de groupe
-# TEST_IMAGE_FILE_4 = "./assets/2024.jpg"    # Quatrième selfie de groupe
+# TEST_IMAGE_FILE_4 = "./assets/group_selfie_4.jpg"    # Quatrième selfie de groupe
 
 # # Supposons que vous ayez déjà une session AWS valide
 # aws_session = get_aws_session()  # Vous pouvez adapter cette fonction selon votre propre configuration
