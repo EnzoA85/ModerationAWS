@@ -1,4 +1,5 @@
 import os, cv2, boto3, time, urllib.request, json
+
 from dotenv import load_dotenv
 
 #Fonction de création de session AWS
@@ -22,7 +23,6 @@ def create_S3User_bucket(bucketname):
     session = boto3.Session(aws_access_key_id=os.getenv("ACCESS_KEY"), aws_secret_access_key=os.getenv("SECRET_KEY"))
     s3 = session.resource("s3")
     bucket = s3.create_bucket(Bucket=bucketname)
-
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
 def check_filetype(filename):   
@@ -250,3 +250,4 @@ def summarize_emotions(faces_info):
         'age_stats': age_stats,
         'gender_stats': gender_stats
     }
+    return labels
