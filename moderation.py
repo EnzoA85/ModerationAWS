@@ -1,30 +1,8 @@
 import os
+import cv2
 
-def check_filetype(filename):
-    """
-    Détermine le type de fichier en fonction de son extension.
-
-    Cette fonction prend un nom de fichier en entrée, extrait son extension et détermine
-    le type de fichier (par exemple, image, vidéo). Si l'extension du fichier est reconnue comme un format
-    d'image courant (jpg, png, tiff, svg) ou un format de vidéo courant (mp4, avi, mkv), elle attribue
-    le type correspondant. Sinon, le type de fichier est défini sur None.
-
-    Paramètres :
-    - filename (str) : Le chemin vers le fichier incluant le nom de fichier.
-
-    Retourne :
-    - str ou None : Le type de fichier déterminé ('image', 'vidéo') ou None si le type de fichier
-      n'est pas reconnu.
-
-    Exemple :
-    >>> check_filetype("/chemin/vers/image.jpg")
-    'image'
-    >>> check_filetype("/chemin/vers/video.mp4")
-    'vidéo'
-    >>> check_filetype("/chemin/vers/fichierinconnu.xyz")
-    None
-    """
-    
+#Fonction d'analyse du type du fichier (image ou vidéo)
+def check_filetype(filename):   
     # Vérifie si le fichier a une extension
     if '.' not in filename:
         return None
@@ -44,3 +22,18 @@ def check_filetype(filename):
         filetype = None
     
     return filetype
+
+#Fonction d'extraction d'image d'une vidéo
+def extract_frame_video(video_path, frame_id):
+    # Ouvre la vidéo à partir du chemin fourni.
+    video = cv2.VideoCapture(video_path)
+
+    # Positionne le lecteur vidéo sur l'image spécifiée par frame_id.
+    video.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
+
+    # Lit l'image actuelle.
+    ret, image = video.read()
+
+    # Si la lecture réussit (ret est True), retourne l'image.
+    # Sinon, retourne None.
+    return image if ret else None
