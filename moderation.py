@@ -19,9 +19,21 @@ def get_aws_session():
 
 #Fonction instancier client S3 et création bucket
 def create_S3User_bucket(bucketname):
-    session = boto3.Session(aws_access_key_id=os.getenv("ACCESS_KEY"), aws_secret_access_key=os.getenv("SECRET_KEY"))
+    session = boto3.Session(
+        aws_access_key_id=os.getenv("ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SECRET_KEY"),
+        region_name="eu-west-1"  # Remplacez par votre région AWS
+    )
     s3 = session.resource("s3")
-    bucket = s3.create_bucket(Bucket=bucketname)
+
+    bucket = s3.create_bucket(
+        Bucket=bucketname,
+        CreateBucketConfiguration={
+            'LocationConstraint': "eu-west-1"  # Remplacez par votre région AWS
+        }
+    )
+
+    return bucket
 
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
@@ -250,3 +262,85 @@ def summarize_emotions(faces_info):
         'age_stats': age_stats,
         'gender_stats': gender_stats
     }
+
+
+import os
+import time
+import json
+import boto3
+import subprocess
+
+def extract_audio_from_video(video_path, audio_path):
+    """
+    Extrait l'audio d'une vidéo en utilisant ffmpeg.
+    
+    Paramètres :
+    - video_path (str) : Chemin de la vidéo en entrée.
+    - audio_path (str) : Chemin de sortie pour l'audio extrait.
+    """
+    command = f"ffmpeg -i {video_path} -vn -acodec mp3 {audio_path} -y"
+    subprocess.run(command, shell=True, check=True)
+
+def get_text_from_speech(video_filename, aws_service, job_name, bucket_name):
+    """
+    Transcrit l'audio extrait d'une vidéo en texte avec AWS Transcribe.
+
+    Étapes :
+    1. Extraction de l'audio depuis la vidéo.
+    2. Téléversement de l'audio sur S3.
+    3. Démarrage et suivi du job de transcription AWS Transcribe.
+    4. Récupération du texte transcrit.
+
+    Paramètres :
+    - video_filename (str) : Chemin du fichier vidéo.
+    - aws_service (boto3.client) : Client AWS Transcribe.
+    - job_name (str) : Nom du job de transcription.
+    - bucket_name (str) : Nom du bucket S3.
+
+    Retourne :
+    - str : Texte transcrit.
+    """
+
+    # 1️⃣ Extraire l'audio
+    audio_filename = video_filename.replace(".mp4", ".mp3")
+    extract_audio_from_video(video_filename, audio_filename)
+
+    # 2️⃣ Téléverser sur S3
+    s3_client = boto3.client("s3")
+    s3_key = f"audio/{os.path.basename(audio_filename)}"
+    s3_client.upload_file(audio_filename, bucket_name, s3_key)
+    file_uri = f"s3://{bucket_name}/{s3_key}"
+
+    # 3️⃣ Lancer AWS Transcribe
+    aws_service.start_transcription_job(
+        TranscriptionJobName=job_name,
+        Media={"MediaFileUri": file_uri},
+        MediaFormat="mp3",
+        LanguageCode="fr-FR"
+    )
+
+    # 4️⃣ Vérifier le statut du job
+    while True:
+        response = aws_service.get_transcription_job(TranscriptionJobName=job_name)
+        status = response["TranscriptionJob"]["TranscriptionJobStatus"]
+
+        if status in ["COMPLETED", "FAILED"]:
+            break
+        time.sleep(5)
+
+    if status == "COMPLETED":
+        transcript_uri = response["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
+        
+        # Télécharger et lire le fichier JSON du transcript
+        transcript_json = boto3.client("s3").get_object(Bucket=bucket_name, Key=s3_key)
+        transcript_data = json.loads(transcript_json['Body'].read().decode("utf-8"))
+        return transcript_data["results"]["transcripts"][0]["transcript"]
+
+    else:
+        raise Exception("Échec de la transcription")
+
+# 💡 Utilisation :
+# aws_session = get_aws_session()
+# transcribe_client = aws_session.client("transcribe")
+# text = get_text_from_speech("video.mp4", transcribe_client, "transcription_job", "my-s3-bucket")
+# print(text)
