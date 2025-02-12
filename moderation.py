@@ -343,8 +343,7 @@ def process_media(media_file, rekognition, transcribe, comprehend):
 
         upload_video_to_s3(get_aws_session(), temp_file_path, 'bucket-transcript-videos-tpstreamlit')
 
-        sleep(3)
-
+        
         job_name = f"transcription-{int(time.time())}"
 
         results["message"] = "Traitement vidéo non encore implémenté."
