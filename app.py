@@ -86,7 +86,6 @@ with st.sidebar:
             else:
                 st.error("Erreur : Veuillez remplir tous les champs pour vous connecter.")
 
-
 # ---- Affichage de la zone d'upload si connecté ----
 if st.session_state.connected:
     # Zone d'upload
@@ -105,44 +104,59 @@ if st.session_state.connected:
         </h4>
         """, unsafe_allow_html=True)
 
-        # Afficher un spinner pendant l'analyse
-        with st.spinner("🔍 Analyse en cours..."):
+        # Vérification de la taille du fichier
+        uploaded_file.seek(0, os.SEEK_END)  # Aller à la fin du fichier
+        file_size = uploaded_file.tell()  # Obtenir la taille
+        uploaded_file.seek(0)  # Revenir au début
 
-            # Vérification de la taille du fichier
-            uploaded_file.seek(0, os.SEEK_END)  # Aller à la fin du fichier
-            file_size = uploaded_file.tell()  # Obtenir la taille
-            uploaded_file.seek(0)  # Revenir au début
+        if file_size > max_file_size:
+            st.error("❌ Erreur : Le fichier dépasse la limite de 50 Mo.")
+        else:
+            st.success("✅ Fichier valide ! Prêt pour l'analyse.")
+            
+            # --- L'analyse du contenu sensible commence ici ---
 
-            if file_size > max_file_size:
-                st.error("❌ Erreur : Le fichier dépasse la limite de 50 Mo.")
-            else:
-                st.success("✅ Fichier valide ! Prêt pour l'analyse.")
-                
-                # Appel de la fonction process_media pour analyser le fichier
-                analysis_result = process_media(uploaded_file, rekognition, transcribe, comprehend)
-                
-                # Affichage de l'image ou de la vidéo
-                file_extension = uploaded_file.name.split(".")[-1].lower()
+            # Extraction des objets (hashtags) et analyse de contenu sensible
+            analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
+            hashtags = analysis_result.get('objects', [])
+            moderation = analysis_result.get('moderation', [])
 
-                if file_extension in ["png", "jpg", "jpeg", "gif"]:
-                    st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
-                elif file_extension in ["mp4", "mov", "avi"]:
-                    st.video(uploaded_file)
-                
-                # Extraction des objets (hashtags)
-                analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
-                hashtags = analysis_result.get('objects', [])
-                
-                if hashtags:
-                    # Création d'une bulle bleue pour chaque hashtag
-                    hashtags_html = ""
-                    for hashtag in hashtags:
-                        hashtags_html += f"""
-                        <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
-                            #{hashtag}
-                        </div>
-                        """
-                    # Afficher les hashtags en une seule ligne (à la suite)
-                    st.markdown(hashtags_html, unsafe_allow_html=True)
+            # Si du contenu sensible est détecté, on arrête l'analyse
+            if moderation:
+                # Alerte rouge avec fond semi-transparent
+                st.markdown("""
+                <div style="background-color: rgba(255, 0, 0, 0.5); padding: 20px; border-radius: 10px; color: white;">
+                    <h2>⚠️ Contenu bloqué</h2>
+                    <p>Le contenu a été bloqué en raison de la détection de thèmes sensibles.</p>
+                    <p><strong>Thèmes sensibles détectés :</strong></p>
+                """, unsafe_allow_html=True)
+
+                # Liste des thèmes sensibles
+                for theme in moderation:
+                    st.write(f"- {theme}")
+
+                # Stopper immédiatement l'exécution, arrêt du spinner et ne pas afficher l'image/vidéo
+                st.stop()  # Arrêter l'exécution du script
+
+            # Si le contenu est OK, on peut continuer à afficher l'image ou la vidéo
+            file_extension = uploaded_file.name.split(".")[-1].lower()
+
+            if file_extension in ["png", "jpg", "jpeg", "gif"]:
+                st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
+            elif file_extension in ["mp4", "mov", "avi"]:
+                st.video(uploaded_file)
+
+            if hashtags:
+                # Création d'une bulle bleue pour chaque hashtag
+                hashtags_html = ""
+                for hashtag in hashtags:
+                    hashtags_html += f"""
+                    <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
+                        #{hashtag}
+                    </div>
+                    """
+                # Afficher les hashtags en une seule ligne (à la suite)
+                st.markdown(hashtags_html, unsafe_allow_html=True)
+
 else:
     st.warning("⚠️ Vous devez vous connecter avec vos credentials AWS pour accéder à la zone d'upload.")
