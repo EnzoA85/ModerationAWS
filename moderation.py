@@ -1,4 +1,4 @@
-import os, cv2, boto3, time
+import os, cv2, boto3, time, tempfile
 
 from dotenv import load_dotenv
 
@@ -253,30 +253,35 @@ def summarize_emotions(faces_info):
     return labels
 
 def process_media(media_file, rekognition, transcribe, comprehend):
-    # Déterminer le type du fichier
-    file_type = check_filetype(media_file)
+    # Utiliser le nom du fichier pour vérifier son type
+    file_type = check_filetype(media_file.name)  # Correction ici
     
     if file_type is None:
-        return {"error": "Type de fichier non supporté."}
+        return {"error": "Type de fichier non supporté."}, None
     
     results = {"file_type": file_type}
 
+    # Sauvegarder temporairement le fichier
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{media_file.name.split('.')[-1]}") as temp_file:
+        temp_file.write(media_file.getbuffer())  # Écrit le contenu de l'UploadedFile dans un fichier temporaire
+        temp_file_path = temp_file.name  # Récupère le chemin du fichier temporaire
+
     # Si le fichier est une image, effectuer les analyses
     if file_type == "image":
-        # Modération de l'image
-        results["moderation"] = moderate_image(media_file, rekognition)
+        # Passer le chemin du fichier temporaire à la fonction
+        results["moderation"] = moderate_image(temp_file_path, rekognition)
         
         # Détection des objets
-        results["objects"] = detect_objects(media_file, rekognition)
+        results["objects"] = detect_objects(temp_file_path, rekognition)
         
         # Détection des célébrités
-        results["celebrities"] = detect_celebrities(media_file, rekognition)
+        results["celebrities"] = detect_celebrities(temp_file_path, rekognition)
         
         # Détection des émotions
-        results["emotions"] = detect_emotions(media_file, rekognition)
+        results["emotions"] = detect_emotions(temp_file_path, rekognition)
     
     # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
     elif file_type == "vidéo":
         results["message"] = "Traitement vidéo non encore implémenté."
     
-    return results
+    return results, file_type

@@ -1,19 +1,6 @@
-import streamlit as st
+import streamlit as st, os, time
 from dotenv import load_dotenv
-import os
-import time
-
-# Supposons que process_media soit une fonction que vous avez définie
-# Exemple de fonction : elle retourne une réponse sous forme de dictionnaire
-def process_media(file):
-    # Exemple de réponse (remplacer par l'appel réel à votre fonction d'analyse)
-    return {
-        'file_type': 'image',
-        'moderation': [],
-        'objects': ['Dog', 'Husky', 'Person', 'Sitting', 'Grass', 'Portrait', 'Adult', 'Male', 'Man', 'Wristwatch'],
-        'celebrities': [],
-        'emotions': [{'Gender': {'Value': 'Male', 'Confidence': 99.74}, 'AgeRange': {'Low': 25, 'High': 33}, 'Emotions': [{'Type': 'HAPPY', 'Confidence': 100.0}, {'Type': 'SURPRISED', 'Confidence': 0.0}, {'Type': 'CALM', 'Confidence': 0.0}]}]
-    }
+from moderation import process_media, get_aws_session
 
 st.set_page_config(page_title="Content Moderator Pro", page_icon=":camera:", layout="centered", initial_sidebar_state="auto", menu_items=None)
 
@@ -48,6 +35,10 @@ def load_credentials_from_env():
             st.error("Erreur : Le fichier .env ne contient pas toutes les informations nécessaires.")
     except Exception as e:
         st.error(f"Erreur lors du chargement des credentials : {e}")
+aws_session = get_aws_session()
+rekognition = aws_session.client("rekognition")
+transcribe = aws_session.client("transcribe")
+comprehend = aws_session.client("comprehend")
 
 with st.sidebar:
     st.title(":gear: Configuration")
@@ -116,7 +107,6 @@ if st.session_state.connected:
 
         # Afficher un spinner pendant l'analyse
         with st.spinner("🔍 Analyse en cours..."):
-            time.sleep(2)  # Simule un traitement
 
             # Vérification de la taille du fichier
             uploaded_file.seek(0, os.SEEK_END)  # Aller à la fin du fichier
@@ -129,23 +119,30 @@ if st.session_state.connected:
                 st.success("✅ Fichier valide ! Prêt pour l'analyse.")
                 
                 # Appel de la fonction process_media pour analyser le fichier
-                analysis_result = process_media(uploaded_file)
+                analysis_result = process_media(uploaded_file, rekognition, transcribe, comprehend)
                 
                 # Affichage de l'image ou de la vidéo
                 file_extension = uploaded_file.name.split(".")[-1].lower()
 
                 if file_extension in ["png", "jpg", "jpeg", "gif"]:
-                    st.image(uploaded_file, caption="Image sélectionnée", use_column_width=True)
+                    st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
                 elif file_extension in ["mp4", "mov", "avi"]:
                     st.video(uploaded_file)
                 
                 # Extraction des objets (hashtags)
+                analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
                 hashtags = analysis_result.get('objects', [])
                 
                 if hashtags:
-                    # Affichage des hashtags sous forme de texte
-                    st.markdown("### :mag: Résultats de l'analyse")
-                    st.write("Les objets suivants ont été détectés dans l'image :")
-                    st.markdown(" ".join([f"#{hashtag}" for hashtag in hashtags]))  # Affichage des hashtags sous forme de #Mot
+                    # Création d'une bulle bleue pour chaque hashtag
+                    hashtags_html = ""
+                    for hashtag in hashtags:
+                        hashtags_html += f"""
+                        <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
+                            #{hashtag}
+                        </div>
+                        """
+                    # Afficher les hashtags en une seule ligne (à la suite)
+                    st.markdown(hashtags_html, unsafe_allow_html=True)
 else:
     st.warning("⚠️ Vous devez vous connecter avec vos credentials AWS pour accéder à la zone d'upload.")
