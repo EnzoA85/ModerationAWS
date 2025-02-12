@@ -341,16 +341,17 @@ def process_media(media_file, rekognition, transcribe, comprehend):
     # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
     elif file_type == "vidéo":
 
-        upload_video_to_s3(get_aws_session(), temp_file_path, 'bucket-transcript-videos-tpstreamlit')
+        filenamebucket = upload_video_to_s3(get_aws_session(), temp_file_path, 'bucket-transcript-videos-tpstreamlit')
 
 
         job_name = f"transcription-{int(time.time())}"
 
         print(job_name)
         print(temp_file_path)
+        print(filenamebucket)
 
         results["message"] = "Traitement vidéo non encore implémenté."
-        results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech('videos/'+temp_file_path, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
+        results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech('videos/'+filenamebucket, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
     
         print(results)
     return results, file_type
