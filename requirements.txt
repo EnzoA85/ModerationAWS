@@ -1,0 +1,9 @@
+boto3
+botocore
+streamlit
+nltk
+opencv-python
+Pillow
+python-dotenv
+matplotlib
+pydub
