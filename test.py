@@ -1,4 +1,5 @@
-from moderation import process_media, get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions
+
+from moderation import process_media, get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions, create_S3User_bucket, get_text_from_speech
 from matplotlib import pyplot as plt
 import cv2, boto3, json
 
@@ -126,6 +127,12 @@ import cv2, boto3, json
 #     print(f"  - Statistiques d'âge : min={summary['age_stats']['min']}, max={summary['age_stats']['max']}, moyenne={summary['age_stats']['average']}")
 #     print(f"  - Distribution des genres : {summary['gender_stats']}")
 
+
+
+aws_session = get_aws_session()
+
+#  Lancer le test de sous titres
+get_text_from_speech('videos/tuto_jeux-video.mp4', 'transcribe', 'namejob6', 'bucket-transcript-videos-tpstreamlit')
 
 # Définir le chemin du fichier à tester
 image_path = "assets/no-violence2.png"

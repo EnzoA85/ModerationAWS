@@ -1,4 +1,8 @@
-import os, cv2, boto3, time
+import os, cv2, boto3, time, urllib.request, json
+import subprocess
+import urllib.request
+from pydub import AudioSegment
+
 
 from dotenv import load_dotenv
 
@@ -18,11 +22,24 @@ def get_aws_session():
     return aws_session
 
 
+
 #Fonction instancier client S3 et création bucket
 def create_S3User_bucket(bucketname):
-    session = boto3.Session(aws_access_key_id=os.getenv("ACCESS_KEY"), aws_secret_access_key=os.getenv("SECRET_KEY"))
+    session = boto3.Session(
+        aws_access_key_id=os.getenv("ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SECRET_KEY"),
+        region_name="eu-west-1"  # Remplacez par votre région AWS
+    )
     s3 = session.resource("s3")
-    bucket = s3.create_bucket(Bucket=bucketname)
+
+    bucket = s3.create_bucket(
+        Bucket=bucketname,
+        CreateBucketConfiguration={
+            'LocationConstraint': "eu-west-1"  # Remplacez par votre région AWS
+        }
+    )
+
+    return bucket
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
 def check_filetype(filename):   
@@ -250,7 +267,38 @@ def summarize_emotions(faces_info):
         'age_stats': age_stats,
         'gender_stats': gender_stats
     }
-    return labels
+
+
+def get_text_from_speech(filename, aws_service, job_name, bucket_name):
+
+    # Récupère une session AWS
+    session = get_aws_session()
+    
+    # Initialise le client Transcribe en utilisant la session
+    transcribe = session.client('transcribe', region_name='eu-west-1')
+
+
+    job_uri = 'https://s3.amazonaws.com/'+bucket_name+'/'+filename
+
+    #transcribe = boto3.client('transcribe', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name='eu-west-1')
+
+
+    transcribe.start_transcription_job(TranscriptionJobName=job_name, Media={'MediaFileUri': job_uri}, MediaFormat='mp3', LanguageCode='fr-FR')
+
+    while True:
+        status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+        if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+            break
+        print("Not ready yet...")
+        time.sleep(2)
+    
+    if status['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
+        response = urllib.request.urlopen(status['TranscriptionJob']['Transcript']['TranscriptFileUri'])
+        data = json.loads(response.read())
+        text = data['results']['transcripts'][0]['transcript']
+        print(text)
+
+    #return labels
 
 def process_media(media_file, rekognition, transcribe, comprehend):
     # Déterminer le type du fichier
