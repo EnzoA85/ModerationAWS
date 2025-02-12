@@ -2,6 +2,15 @@ import os, cv2, boto3, time, urllib.request, json
 import subprocess
 import urllib.request
 from pydub import AudioSegment
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import string
+
+# Télécharger les ressources nécessaires pour nltk
+nltk.download("punkt")
+nltk.download('punkt_tab')
+nltk.download("stopwords")
 
 
 from dotenv import load_dotenv
@@ -20,7 +29,6 @@ def get_aws_session():
     
     # Retourne l'objet session créé.
     return aws_session
-
 
 
 #Fonction instancier client S3 et création bucket
@@ -95,7 +103,7 @@ def moderate_image(image_path, aws_service):
     return labels
 
 
-#Fonction pour identifier les objets d'une image (les 10 plus sur)
+#Fonction pour identifier les objets d'une image (les 10 plus sûr)
 def detect_objects(image_path, aws_service):
     # Ouvrir l'image en mode binaire
     with open(image_path, 'rb') as image_file:
@@ -328,3 +336,34 @@ def process_media(media_file, rekognition, transcribe, comprehend):
         results["message"] = "Traitement vidéo non encore implémenté."
     
     return results
+
+
+
+def clean_text(raw_text):
+    # Définition des stop words français
+    stop_words = set(stopwords.words("french"))
+
+    # Tokenisation du texte
+    words = word_tokenize(raw_text, language="french")
+
+    # Suppression des mots vides et des ponctuations, conversion en minuscules
+    cleaned_words = [word.lower() for word in words if word.lower() not in stop_words and word not in string.punctuation]
+
+    # Rejoindre les mots nettoyés en une chaîne
+    return " ".join(cleaned_words)
+
+def extract_keyphrases(text, aws_session):
+    aws_comprehend_client = aws_session.client("comprehend")
+    # Appel à l'API Amazon Comprehend pour extraire les key phrases
+    response = aws_comprehend_client.detect_key_phrases(Text=text, LanguageCode="fr")
+
+    # Récupérer les phrases clés et leurs scores de pertinence
+    key_phrases = response.get("KeyPhrases", [])
+
+    # Trier les phrases par score de pertinence décroissant
+    sorted_phrases = sorted(key_phrases, key=lambda x: x["Score"], reverse=True)
+
+    # Garder uniquement les 10 meilleures phrases et les convertir en hashtags
+    hashtags = ["#" + phrase["Text"].replace(" ", "").lower() for phrase in sorted_phrases[:10]]
+
+    return hashtags
