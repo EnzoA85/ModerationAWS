@@ -1,4 +1,7 @@
 import os, cv2, boto3, time, urllib.request, json
+import subprocess
+import urllib.request
+from pydub import AudioSegment
 from dotenv import load_dotenv
 
 #Fonction de création de session AWS
@@ -15,6 +18,7 @@ def get_aws_session():
     
     # Retourne l'objet session créé.
     return aws_session
+
 
 
 #Fonction instancier client S3 et création bucket
@@ -264,83 +268,31 @@ def summarize_emotions(faces_info):
     }
 
 
-import os
-import time
-import json
-import boto3
-import subprocess
+def get_text_from_speech(filename, aws_service, job_name, bucket_name):
 
-def extract_audio_from_video(video_path, audio_path):
-    """
-    Extrait l'audio d'une vidéo en utilisant ffmpeg.
+    # Récupère une session AWS
+    session = get_aws_session()
     
-    Paramètres :
-    - video_path (str) : Chemin de la vidéo en entrée.
-    - audio_path (str) : Chemin de sortie pour l'audio extrait.
-    """
-    command = f"ffmpeg -i {video_path} -vn -acodec mp3 {audio_path} -y"
-    subprocess.run(command, shell=True, check=True)
+    # Initialise le client Transcribe en utilisant la session
+    transcribe = session.client('transcribe', region_name='eu-west-1')
 
-def get_text_from_speech(video_filename, aws_service, job_name, bucket_name):
-    """
-    Transcrit l'audio extrait d'une vidéo en texte avec AWS Transcribe.
 
-    Étapes :
-    1. Extraction de l'audio depuis la vidéo.
-    2. Téléversement de l'audio sur S3.
-    3. Démarrage et suivi du job de transcription AWS Transcribe.
-    4. Récupération du texte transcrit.
+    job_uri = 'https://s3.amazonaws.com/'+bucket_name+'/'+filename
 
-    Paramètres :
-    - video_filename (str) : Chemin du fichier vidéo.
-    - aws_service (boto3.client) : Client AWS Transcribe.
-    - job_name (str) : Nom du job de transcription.
-    - bucket_name (str) : Nom du bucket S3.
+    #transcribe = boto3.client('transcribe', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name='eu-west-1')
 
-    Retourne :
-    - str : Texte transcrit.
-    """
 
-    # 1️⃣ Extraire l'audio
-    audio_filename = video_filename.replace(".mp4", ".mp3")
-    extract_audio_from_video(video_filename, audio_filename)
+    transcribe.start_transcription_job(TranscriptionJobName=job_name, Media={'MediaFileUri': job_uri}, MediaFormat='mp3', LanguageCode='fr-FR')
 
-    # 2️⃣ Téléverser sur S3
-    s3_client = boto3.client("s3")
-    s3_key = f"audio/{os.path.basename(audio_filename)}"
-    s3_client.upload_file(audio_filename, bucket_name, s3_key)
-    file_uri = f"s3://{bucket_name}/{s3_key}"
-
-    # 3️⃣ Lancer AWS Transcribe
-    aws_service.start_transcription_job(
-        TranscriptionJobName=job_name,
-        Media={"MediaFileUri": file_uri},
-        MediaFormat="mp3",
-        LanguageCode="fr-FR"
-    )
-
-    # 4️⃣ Vérifier le statut du job
     while True:
-        response = aws_service.get_transcription_job(TranscriptionJobName=job_name)
-        status = response["TranscriptionJob"]["TranscriptionJobStatus"]
-
-        if status in ["COMPLETED", "FAILED"]:
+        status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+        if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
             break
-        time.sleep(5)
-
-    if status == "COMPLETED":
-        transcript_uri = response["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
-        
-        # Télécharger et lire le fichier JSON du transcript
-        transcript_json = boto3.client("s3").get_object(Bucket=bucket_name, Key=s3_key)
-        transcript_data = json.loads(transcript_json['Body'].read().decode("utf-8"))
-        return transcript_data["results"]["transcripts"][0]["transcript"]
-
-    else:
-        raise Exception("Échec de la transcription")
-
-# 💡 Utilisation :
-# aws_session = get_aws_session()
-# transcribe_client = aws_session.client("transcribe")
-# text = get_text_from_speech("video.mp4", transcribe_client, "transcription_job", "my-s3-bucket")
-# print(text)
+        print("Not ready yet...")
+        time.sleep(2)
+    
+    if status['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
+        response = urllib.request.urlopen(status['TranscriptionJob']['Transcript']['TranscriptFileUri'])
+        data = json.loads(response.read())
+        text = data['results']['transcripts'][0]['transcript']
+        print(text)
