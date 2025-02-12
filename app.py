@@ -117,47 +117,32 @@ if st.session_state.connected:
                 st.error("❌ Erreur : Le fichier dépasse la limite de 50 Mo.")
             else:
                 st.success("✅ Fichier valide ! Prêt pour l'analyse.")
-                    
+                
                 # Appel de la fonction process_media pour analyser le fichier
                 analysis_result = process_media(uploaded_file, rekognition, transcribe, comprehend)
                 
-                # Vérification de la présence de contenu bloqué
-                if 'blocked' in analysis_result:
-                    # Alerte rouge si contenu inapproprié détecté
-                    st.markdown(f"""
-                    <div style="color: red; background-color: #ffcccc; padding: 10px; border-radius: 5px; font-weight: bold;">
-                        {analysis_result['blocked']['message']}
-                    </div>
-                    <br>
-                    <strong>Raisons :</strong>
-                    <ul>
-                        {"".join([f"<li>{reason}</li>" for reason in analysis_result['blocked']['reasons']])}
-                    </ul>
-                    """, unsafe_allow_html=True)
-                else:
-                    # Affichage de l'image ou de la vidéo
-                    file_extension = uploaded_file.name.split(".")[-1].lower()
+                # Affichage de l'image ou de la vidéo
+                file_extension = uploaded_file.name.split(".")[-1].lower()
 
-                    if file_extension in ["png", "jpg", "jpeg", "gif"]:
-                        st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
-                    elif file_extension in ["mp4", "mov", "avi"]:
-                        st.video(uploaded_file)
-                    
-                    # Extraction des objets (hashtags)
-                    results, file_type = analysis_result  # Décompose le tuple
-                    hashtags = results.get('objects', [])  # Accède au dictionnaire des résultats
-
-                    
-                    if hashtags:
-                        # Création d'une bulle bleue pour chaque hashtag
-                        hashtags_html = ""
-                        for hashtag in hashtags:
-                            hashtags_html += f"""
-                            <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
-                                #{hashtag}
-                            </div>
-                            """
-                        # Afficher les hashtags en une seule ligne (à la suite)
-                        st.markdown(hashtags_html, unsafe_allow_html=True)
+                if file_extension in ["png", "jpg", "jpeg", "gif"]:
+                    st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
+                elif file_extension in ["mp4", "mov", "avi"]:
+                    st.video(uploaded_file)
+                
+                # Extraction des objets (hashtags)
+                analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
+                hashtags = analysis_result.get('objects', [])
+                
+                if hashtags:
+                    # Création d'une bulle bleue pour chaque hashtag
+                    hashtags_html = ""
+                    for hashtag in hashtags:
+                        hashtags_html += f"""
+                        <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
+                            #{hashtag}
+                        </div>
+                        """
+                    # Afficher les hashtags en une seule ligne (à la suite)
+                    st.markdown(hashtags_html, unsafe_allow_html=True)
 else:
     st.warning("⚠️ Vous devez vous connecter avec vos credentials AWS pour accéder à la zone d'upload.")
