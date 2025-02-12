@@ -271,14 +271,26 @@ def process_media(media_file, rekognition, transcribe, comprehend):
         # Passer le chemin du fichier temporaire à la fonction
         results["moderation"] = moderate_image(temp_file_path, rekognition)
         
-        # Détection des objets
-        results["objects"] = detect_objects(temp_file_path, rekognition)
+        # Si des labels de contenu inapproprié sont détectés
+        inappropriate_labels = [
+            "Explicit Nudity", "Violence", "Abuse", "Hate", "Drugs"
+        ]
+        detected_labels = results["moderation"]
         
-        # Détection des célébrités
-        results["celebrities"] = detect_celebrities(temp_file_path, rekognition)
-        
-        # Détection des émotions
-        results["emotions"] = detect_emotions(temp_file_path, rekognition)
+        # Vérifie si des labels inappropriés sont présents
+        blocked_content = [label for label in detected_labels if label in inappropriate_labels]
+
+        if blocked_content:
+            # Ajouter une alerte rouge
+            results["blocked"] = {
+                "message": "⚠️ Contenu inapproprié détecté. Le contenu a été bloqué.",
+                "reasons": blocked_content  # Liste des raisons
+            }
+        else:
+            # Continuer avec l'analyse d'autres aspects
+            results["objects"] = detect_objects(temp_file_path, rekognition)
+            results["celebrities"] = detect_celebrities(temp_file_path, rekognition)
+            results["emotions"] = detect_emotions(temp_file_path, rekognition)
     
     # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
     elif file_type == "vidéo":
