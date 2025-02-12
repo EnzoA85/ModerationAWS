@@ -343,8 +343,11 @@ def process_media(media_file, rekognition, transcribe, comprehend):
 
         upload_video_to_s3(get_aws_session(), temp_file_path, 'bucket-transcript-videos-tpstreamlit')
 
-        
+
         job_name = f"transcription-{int(time.time())}"
+
+        print(job_name)
+        print(temp_file_path)
 
         results["message"] = "Traitement vidéo non encore implémenté."
         results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech('videos/'+temp_file_path, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
@@ -398,6 +401,7 @@ def get_aws_clients():
 # Envoi vers le bucket
 def upload_video_to_s3(session, file_path, bucket_name):
     s3 = session.client("s3")
+    print(s3)
     file_name = file_path.split("/")[-1]  # Extraire le nom du fichier
     s3.upload_file(file_path, bucket_name, f"videos/{file_name}")
     return f"videos/{file_name}"
