@@ -1,4 +1,5 @@
-from moderation import get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions, create_S3User_bucket, get_text_from_speech
+
+from moderation import process_media, get_aws_session, check_filetype, extract_frame_video, moderate_image, detect_objects, detect_celebrities, detect_emotions, summarize_emotions, create_S3User_bucket, get_text_from_speech
 from matplotlib import pyplot as plt
 import cv2, boto3, json
 
@@ -128,10 +129,24 @@ import cv2, boto3, json
 
 
 
-
-
-
 aws_session = get_aws_session()
 
 #  Lancer le test de sous titres
 get_text_from_speech('videos/tuto_jeux-video.mp4', 'transcribe', 'namejob6', 'bucket-transcript-videos-tpstreamlit')
+
+# Définir le chemin du fichier à tester
+image_path = "assets/no-violence2.png"
+
+# Initialiser la session AWS en utilisant la fonction get_aws_session
+aws_session = get_aws_session()
+
+# Initialiser les clients AWS avec la session AWS créée
+rekognition = aws_session.client("rekognition")
+transcribe = aws_session.client("transcribe")
+comprehend = aws_session.client("comprehend")
+
+# Tester la fonction process_media
+resultats = process_media(image_path, rekognition, transcribe, comprehend)
+
+# Afficher les résultats
+print(resultats)

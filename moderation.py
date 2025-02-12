@@ -2,6 +2,8 @@ import os, cv2, boto3, time, urllib.request, json
 import subprocess
 import urllib.request
 from pydub import AudioSegment
+
+
 from dotenv import load_dotenv
 
 #Fonction de création de session AWS
@@ -38,7 +40,6 @@ def create_S3User_bucket(bucketname):
     )
 
     return bucket
-
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
 def check_filetype(filename):   
@@ -296,3 +297,34 @@ def get_text_from_speech(filename, aws_service, job_name, bucket_name):
         data = json.loads(response.read())
         text = data['results']['transcripts'][0]['transcript']
         print(text)
+
+    #return labels
+
+def process_media(media_file, rekognition, transcribe, comprehend):
+    # Déterminer le type du fichier
+    file_type = check_filetype(media_file)
+    
+    if file_type is None:
+        return {"error": "Type de fichier non supporté."}
+    
+    results = {"file_type": file_type}
+
+    # Si le fichier est une image, effectuer les analyses
+    if file_type == "image":
+        # Modération de l'image
+        results["moderation"] = moderate_image(media_file, rekognition)
+        
+        # Détection des objets
+        results["objects"] = detect_objects(media_file, rekognition)
+        
+        # Détection des célébrités
+        results["celebrities"] = detect_celebrities(media_file, rekognition)
+        
+        # Détection des émotions
+        results["emotions"] = detect_emotions(media_file, rekognition)
+    
+    # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
+    elif file_type == "vidéo":
+        results["message"] = "Traitement vidéo non encore implémenté."
+    
+    return results
