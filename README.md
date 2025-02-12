@@ -34,8 +34,8 @@ Avant de commencer, assurez-vous d'avoir :
 ### Étapes d'installation
 1. Clonez le projet :
    ```bash
-   git clone https://github.com/votre-repo/content-moderator-pro.git
-   cd content-moderator-pro
+   git clone https://github.com/EnzoA85/ModerationAWS.git
+   cd ModerationAWS
    ```
 2. Installez les dépendances :
    ```bash
@@ -50,7 +50,7 @@ Avant de commencer, assurez-vous d'avoir :
      ```
 4. Lancez l'application :
    ```bash
-   streamlit run app.py
+   streamlit run app.py ou py -m streamlit run app.py
    ```
 
 ---
