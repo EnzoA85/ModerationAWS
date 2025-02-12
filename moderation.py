@@ -286,7 +286,9 @@ def get_text_from_speech(filename, aws_service, job_name, bucket_name):
     transcribe = session.client('transcribe', region_name='eu-west-1')
 
 
-    job_uri = 'https://s3.amazonaws.com/'+bucket_name+'/'+filename
+    #job_uri = 'https://s3.amazonaws.com/'+bucket_name+'/'+filename
+    job_uri = "s3://"+bucket_name+"/videos/"+filename
+
 
     #transcribe = boto3.client('transcribe', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name='eu-west-1')
 
