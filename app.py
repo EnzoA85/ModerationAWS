@@ -1,6 +1,6 @@
 import streamlit as st, os, time
 from dotenv import load_dotenv
-from moderation import process_media, get_aws_session
+from moderation import process_media, get_aws_session, check_filetype, upload_video_to_s3
 
 st.set_page_config(page_title="Content Moderator Pro", page_icon=":camera:", layout="centered", initial_sidebar_state="auto", menu_items=None)
 
@@ -132,6 +132,8 @@ if st.session_state.connected:
                 # Extraction des objets (hashtags)
                 analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
                 hashtags = analysis_result.get('objects', [])
+
+                print(hashtags)
                 
                 if hashtags:
                     # Création d'une bulle bleue pour chaque hashtag

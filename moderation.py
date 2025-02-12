@@ -306,7 +306,7 @@ def get_text_from_speech(filename, aws_service, job_name, bucket_name):
         text = data['results']['transcripts'][0]['transcript']
         print(text)
 
-    #return labels
+    return text
 
 def process_media(media_file, rekognition, transcribe, comprehend):
     # Utiliser le nom du fichier pour vérifier son type
@@ -338,12 +338,16 @@ def process_media(media_file, rekognition, transcribe, comprehend):
     
     # Logique pour traiter une vidéo (ajout de l'analyse future si nécessaire)
     elif file_type == "vidéo":
+
+        upload_video_to_s3(get_aws_session(), temp_file_path, 'bucket-transcript-videos-tpstreamlit')
+
+        job_name = f"transcription-{int(time.time())}"
+
         results["message"] = "Traitement vidéo non encore implémenté."
+        results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech('videos/'+temp_file_path, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
     
-
+        print(results)
     return results, file_type
-
-
 
 
 def clean_text(raw_text):
@@ -371,7 +375,26 @@ def extract_keyphrases(text, aws_session):
     sorted_phrases = sorted(key_phrases, key=lambda x: x["Score"], reverse=True)
 
     # Garder uniquement les 10 meilleures phrases et les convertir en hashtags
-    hashtags = ["#" + phrase["Text"].replace(" ", "").lower() for phrase in sorted_phrases[:10]]
+    hashtags = [phrase["Text"].replace(" ", "").lower() for phrase in sorted_phrases[:10]]
 
     return hashtags
 
+
+
+def get_aws_clients():
+    """ Initialise les clients AWS nécessaires (S3 et Transcribe). """
+    session = boto3.Session(
+        aws_access_key_id=os.getenv("ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SECRET_KEY"),
+        region_name="us-east-1"
+    )
+    s3_client = session.client("s3")
+    transcribe_client = session.client("transcribe")
+    return s3_client, transcribe_client
+
+# Envoi vers le bucket
+def upload_video_to_s3(session, file_path, bucket_name):
+    s3 = session.client("s3")
+    file_name = file_path.split("/")[-1]  # Extraire le nom du fichier
+    s3.upload_file(file_path, bucket_name, f"videos/{file_name}")
+    return f"videos/{file_name}"
