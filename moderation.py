@@ -351,7 +351,7 @@ def process_media(media_file, rekognition, transcribe, comprehend):
         print(filenamebucket)
 
         results["message"] = "Traitement vidéo non encore implémenté."
-        results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech('videos/'+filenamebucket, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
+        results['objects'] = extract_keyphrases(clean_text(str(get_text_from_speech(filenamebucket, 'transcribe', job_name, 'bucket-transcript-videos-tpstreamlit'))), get_aws_session())
     
         print(results)
     return results, file_type
