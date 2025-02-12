@@ -128,6 +128,10 @@ import cv2, boto3, json
 #     print(f"  - Distribution des genres : {summary['gender_stats']}")
 
 
+#Test de la fonction Process_media
+# Définir le chemin du fichier à tester
+image_path = "assets/no-violence2.png"
+
 
 # aws_session = get_aws_session()
 
