@@ -1,4 +1,17 @@
-import os, cv2, boto3, time, tempfile
+
+import os, cv2, boto3, time, urllib.request, json, tempfile
+import subprocess
+import urllib.request
+from pydub import AudioSegment
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import string
+
+# Télécharger les ressources nécessaires pour nltk
+nltk.download("punkt")
+nltk.download('punkt_tab')
+nltk.download("stopwords")
 
 from dotenv import load_dotenv
 
@@ -20,9 +33,21 @@ def get_aws_session():
 
 #Fonction instancier client S3 et création bucket
 def create_S3User_bucket(bucketname):
-    session = boto3.Session(aws_access_key_id=os.getenv("ACCESS_KEY"), aws_secret_access_key=os.getenv("SECRET_KEY"))
+    session = boto3.Session(
+        aws_access_key_id=os.getenv("ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SECRET_KEY"),
+        region_name="eu-west-1"  # Remplacez par votre région AWS
+    )
     s3 = session.resource("s3")
-    bucket = s3.create_bucket(Bucket=bucketname)
+
+    bucket = s3.create_bucket(
+        Bucket=bucketname,
+        CreateBucketConfiguration={
+            'LocationConstraint': "eu-west-1"  # Remplacez par votre région AWS
+        }
+    )
+
+    return bucket
 
 #Fonction d'analyse du type du fichier (image ou vidéo)
 def check_filetype(filename):   
@@ -78,7 +103,7 @@ def moderate_image(image_path, aws_service):
     return labels
 
 
-#Fonction pour identifier les objets d'une image (les 10 plus sur)
+#Fonction pour identifier les objets d'une image (les 10 plus sûr)
 def detect_objects(image_path, aws_service):
     # Ouvrir l'image en mode binaire
     with open(image_path, 'rb') as image_file:
@@ -250,7 +275,38 @@ def summarize_emotions(faces_info):
         'age_stats': age_stats,
         'gender_stats': gender_stats
     }
-    return labels
+
+
+def get_text_from_speech(filename, aws_service, job_name, bucket_name):
+
+    # Récupère une session AWS
+    session = get_aws_session()
+    
+    # Initialise le client Transcribe en utilisant la session
+    transcribe = session.client('transcribe', region_name='eu-west-1')
+
+
+    job_uri = 'https://s3.amazonaws.com/'+bucket_name+'/'+filename
+
+    #transcribe = boto3.client('transcribe', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name='eu-west-1')
+
+
+    transcribe.start_transcription_job(TranscriptionJobName=job_name, Media={'MediaFileUri': job_uri}, MediaFormat='mp3', LanguageCode='fr-FR')
+
+    while True:
+        status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+        if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+            break
+        print("Not ready yet...")
+        time.sleep(2)
+    
+    if status['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
+        response = urllib.request.urlopen(status['TranscriptionJob']['Transcript']['TranscriptFileUri'])
+        data = json.loads(response.read())
+        text = data['results']['transcripts'][0]['transcript']
+        print(text)
+
+    #return labels
 
 def process_media(media_file, rekognition, transcribe, comprehend):
     # Utiliser le nom du fichier pour vérifier son type
@@ -284,4 +340,38 @@ def process_media(media_file, rekognition, transcribe, comprehend):
     elif file_type == "vidéo":
         results["message"] = "Traitement vidéo non encore implémenté."
     
+
     return results, file_type
+
+
+
+
+def clean_text(raw_text):
+    # Définition des stop words français
+    stop_words = set(stopwords.words("french"))
+
+    # Tokenisation du texte
+    words = word_tokenize(raw_text, language="french")
+
+    # Suppression des mots vides et des ponctuations, conversion en minuscules
+    cleaned_words = [word.lower() for word in words if word.lower() not in stop_words and word not in string.punctuation]
+
+    # Rejoindre les mots nettoyés en une chaîne
+    return " ".join(cleaned_words)
+
+def extract_keyphrases(text, aws_session):
+    aws_comprehend_client = aws_session.client("comprehend")
+    # Appel à l'API Amazon Comprehend pour extraire les key phrases
+    response = aws_comprehend_client.detect_key_phrases(Text=text, LanguageCode="fr")
+
+    # Récupérer les phrases clés et leurs scores de pertinence
+    key_phrases = response.get("KeyPhrases", [])
+
+    # Trier les phrases par score de pertinence décroissant
+    sorted_phrases = sorted(key_phrases, key=lambda x: x["Score"], reverse=True)
+
+    # Garder uniquement les 10 meilleures phrases et les convertir en hashtags
+    hashtags = ["#" + phrase["Text"].replace(" ", "").lower() for phrase in sorted_phrases[:10]]
+
+    return hashtags
+
