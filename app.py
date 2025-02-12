@@ -1,6 +1,6 @@
 import streamlit as st, os
 from dotenv import load_dotenv
-from moderation import process_media, get_aws_session
+from moderation import process_media, get_aws_session, check_filetype, upload_video_to_s3
 
 st.set_page_config(page_title="Content Moderator Pro", page_icon=":camera:", layout="centered")
 
@@ -115,5 +115,27 @@ if st.session_state.connected:
                     </div>
                 """ for hashtag in hashtags)
                 st.markdown(hashtags_html, unsafe_allow_html=True)
+                if file_extension in ["png", "jpg", "jpeg", "gif"]:
+                    st.image(uploaded_file, caption="Image sélectionnée", use_container_width=True)
+                elif file_extension in ["mp4", "mov", "avi"]:
+                    st.video(uploaded_file)
+                
+                # Extraction des objets (hashtags)
+                analysis_result, file_type = process_media(uploaded_file, rekognition, transcribe, comprehend)
+                hashtags = analysis_result.get('objects', [])
+
+                print(hashtags)
+                
+                if hashtags:
+                    # Création d'une bulle bleue pour chaque hashtag
+                    hashtags_html = ""
+                    for hashtag in hashtags:
+                        hashtags_html += f"""
+                        <div style="display: inline-block; background-color: rgba(0, 123, 255, 0.5); color: white; padding: 5px 10px; margin: 5px; border-radius: 12px; font-size: 14px;">
+                            #{hashtag}
+                        </div>
+                        """
+                    # Afficher les hashtags en une seule ligne (à la suite)
+                    st.markdown(hashtags_html, unsafe_allow_html=True)
 else:
     st.warning("⚠️ Vous devez vous connecter pour accéder à la zone d'upload.")
